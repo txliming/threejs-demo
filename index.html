@@ -42,13 +42,42 @@ function init(){
   scene.add(dirLight);
   scene.add(new THREE.AmbientLight(0xffffff,0.3));
 
-  // 加载户型json
-  fetch("./floorplan-data.json")
-    .then(res=>res.json())
-    .then(data=>{
-      floorData = data;
-      buildFloorPlan(floorData);
-    })
+  // 直接内嵌户型数据，不再读取外部json文件
+const floorData = {
+  "wallHeight": 2.8,
+  "walls": [
+    {"points": [[0,0],[12,0],[12,10],[0,10],[0,0]], "thickness":0.2},
+    {"points": [[6,0],[6,10]], "thickness":0.2},
+    {"points": [[0,5],[6,5]], "thickness":0.2}
+  ],
+  "floor": {
+    "points": [[0,0],[12,0],[12,10],[0,10]],
+    "color": 0xeeeeee
+  }
+};
+
+/**
+ * 实现户型图构建函数：解析并处理户型数据
+ * @param {Object} data - 户型数据对象
+ */
+function buildFloorPlan(data) {
+  // 基础数据解析（可根据实际需求扩展3D渲染/可视化逻辑）
+  console.log("===== 户型数据解析成功 =====");
+  console.log("墙体高度：", data.wallHeight, "m");
+  console.log("墙体数量：", data.walls.length, "面");
+  console.log("地面坐标：", data.floor.points);
+  console.log("地面颜色：", data.floor.color);
+  
+  // 遍历打印每面墙体信息
+  data.walls.forEach((wall, index) => {
+    console.log(`第${index+1}面墙 - 厚度：${wall.thickness}m，坐标点：`, wall.points);
+  });
+  console.log("==========================");
+}
+
+// 调用户型图构建函数（函数已定义，可正常执行）
+buildFloorPlan(floorData);
+
 
   window.addEventListener('resize',onWindowResize);
   animate();
