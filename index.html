@@ -21,7 +21,7 @@ canvas{display:block}
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x222222);
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(8,-14,12);
+camera.position.set(6,-12,10);
 
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -38,61 +38,49 @@ scene.add(dirLight);
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
-// ========== 户型数据（内嵌，不再读取外部json） ==========
+// ========== 户型数据 ==========
 const floorData = {
   wallHeight: 2.8,
   walls: [
-    {points: [[0,0],[12,0],[12,10],[0,10],[0,0]], thickness:0.2},
-    {points: [[6,0],[6,10]], thickness:0.2},
-    {points: [[0,5],[6,5]], thickness:0.2}
+    { start:[0,0], end:[12,0], thickness:0.2 },
+    { start:[12,0], end:[12,10], thickness:0.2 },
+    { start:[12,10], end:[0,10], thickness:0.2 },
+    { start:[0,10], end:[0,0], thickness:0.2 },
+    { start:[6,0], end:[6,10], thickness:0.2 },
+    { start:[0,5], end:[6,5], thickness:0.2 }
   ],
   floor: {
-    points: [[0,0],[12,0],[12,10]],
-    color: 0xeeeeee
+    x:0, y:0, w:12, h:10, color:0xeeeeee
   }
 };
 
-// ========== 核心构建函数 buildFloorPlan ==========
+// ========== 构建户型（用Box墙体，稳定无bug） ==========
 function buildFloorPlan(data){
   const wallMat = new THREE.MeshStandardMaterial({color:0xf0ece0});
   const floorMat = new THREE.MeshStandardMaterial({color:data.floor.color});
 
-  // 绘制地面
-  const floorShape = new THREE.Shape();
-  floorShape.moveTo(data.floor.points[0][0], data.floor.points[0][1]);
-  for(let i=1;i<data.floor.points.length;i++){
-    floorShape.lineTo(data.floor.points[i][0], data.floor.points[i][1]);
-  }
-  const floorGeo = new THREE.ShapeGeometry(floorShape);
+  // 地面
+  const floorGeo = new THREE.PlaneGeometry(data.floor.w, data.floor.h);
   const floorMesh = new THREE.Mesh(floorGeo, floorMat);
   floorMesh.rotation.x = -Math.PI / 2;
+  floorMesh.position.set(data.floor.w/2,0,data.floor.h/2);
   scene.add(floorMesh);
 
-  // 循环生成墙体
+  // 墙体，每一段墙用Box
   data.walls.forEach(wall=>{
-    const pts2d = wall.points;
-    for(let i=0;i<pts2d.length-1;i++){
-      const p1 = new THREE.Vector2(pts2d[i][0], pts2d[i][1]);
-      const p2 = new THREE.Vector2(pts2d[i+1][0], pts2d[i+1][1]);
-      const line = new THREE.LineCurve2D(p1,p2);
-      const wallShape = new THREE.Shape();
-      const offset = new THREE.Vector2(-(p2.y-p1.y), p2.x-p1.x).normalize().multiplyScalar(wall.thickness/2);
-      wallShape.moveTo(p1.x + offset.x, p1.y + offset.y);
-      wallShape.lineTo(p2.x + offset.x, p2.y + offset.y);
-      const offset2 = new THREE.Vector2(p2.y-p1.y, -(p2.x-p1.x)).normalize().multiplyScalar(wall.thickness/2);
-      wallShape.lineTo(p2.x + offset2.x, p2.y + offset2.y);
-      wallShape.lineTo(p1.x + offset2.x, p1.y + offset2.y);
-      wallShape.lineTo(p1.x + offset.x, p1.y + offset.y);
-
-      const wallGeo = new THREE.ExtrudeGeometry(wallShape, {depth: data.wallHeight, bevelEnabled:false});
-      const wallMesh = new THREE.Mesh(wallGeo, wallMat);
-      wallMesh.rotation.x = -Math.PI/2;
-      scene.add(wallMesh);
-    }
+    const sx = wall.start[0], sz = wall.start[1];
+    const ex = wall.end[0], ez = wall.end[1];
+    const dx = ex - sx;
+    const dz = ez - sz;
+    const len = Math.sqrt(dx*dx + dz*dz);
+    const wallGeo = new THREE.BoxGeometry(len, data.wallHeight, wall.thickness);
+    const wallMesh = new THREE.Mesh(wallGeo, wallMat);
+    wallMesh.position.set((sx+ex)/2, data.wallHeight/2, (sz+ez)/2);
+    wallMesh.rotation.y = Math.atan2(dz, dx);
+    scene.add(wallMesh);
   })
 }
 
-// 执行渲染户型
 buildFloorPlan(floorData);
 
 // 窗口自适应
